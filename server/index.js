@@ -10,20 +10,20 @@ dotenv.config();
 
 const app = express();
 
-// Allowed Origins (Supports Local + Production)
+// Allowed Origins (Supports Local + Vercel/Netlify/Render)
 const allowedOrigins = [
-  process.env.FRONTEND_URL,        // e.g., https://finance-manager.vercel.app
+  process.env.FRONTEND_URL,        // e.g. https://your-finance-app.vercel.app
   process.env.PRODUCTION_URL,      // Optional second domain
-  "http://localhost:5173",         // Vite default
-  "http://localhost:3000",         // Create React App
+  "http://localhost:5173",         // Vite
+  "http://localhost:3000",         // React CRA
   "http://127.0.0.1:5173",
-].filter(Boolean); // Remove undefined/null values
+].filter(Boolean); // Remove undefined values
 
-// CORS Configuration - Secure & Flexible
+// Secure CORS Configuration
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl)
+      // Allow non-browser requests (Postman, mobile, etc.)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -33,47 +33,47 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true, // Important: Allows cookies, auth headers
+    credentials: true, // Required for cookies, auth headers
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
-// Optional: Extra safety net for preflight requests
-app.options("*", cors()); // Enable pre-flight for all routes
+// No need for app.options("*", cors()) → This was crashing your server!
+// It's already handled automatically by the cors middleware above
 
 // Logging
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
-// Body Parser
+// Body Parsing
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// API Routes
 app.use("/api/deposits", require("./routes/deposits"));
 app.use("/api/expenses", require("./routes/expenses"));
 app.use("/api/balance", require("./routes/balance"));
 
-// Health Check Route
+// Health Check
 app.get("/", (req, res) => {
   res.json({
-    message: "Finance Manager API is running!",
+    message: "Finance Manager API is LIVE!",
     status: "success",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
   });
 });
 
-// Handle 404
-app.use("*", (req, res) => {
-  res.status(404).json({ error: "Route not found" });
-});
+// 404 Handler
+// app.use("*", (req, res) => {
+//   res.status(404).json({ error: "Route not found" });
+// });
 
-// Global Error Handler (Optional - Recommended)
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error("Server Error:", err.message);
   res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === "production" ? "Internal Server Error" : err.message,
+    error: process.env.NODE_ENV === "production" ? "Something went wrong" : err.message,
   });
 });
 
@@ -86,9 +86,9 @@ const startServer = async () => {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
-      console.log(`Local: http://localhost:${PORT}`);
+      console.log(`http://localhost:${PORT}`);
       if (process.env.FRONTEND_URL) {
-        console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
+        console.log(`Frontend Connected: ${process.env.FRONTEND_URL}`);
       }
     });
   } catch (error) {
