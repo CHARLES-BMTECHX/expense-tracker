@@ -34,7 +34,8 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
 const { Title, Text } = Typography;
-const API_BASE = "http://localhost:5000/api";
+
+const API_BASE = import.meta.env.VITE_BASE_URI;
 
 function DepositList() {
   const [deposits, setDeposits] = useState([]);

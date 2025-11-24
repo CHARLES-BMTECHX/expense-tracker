@@ -6,7 +6,8 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
-const API_BASE = 'http://localhost:5000/api';
+
+const API_BASE = import.meta.env.VITE_BASE_URI;
 
 function AddExpense() {
   const navigate = useNavigate();

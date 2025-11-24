@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_BASE_URI;
 
 function AddDeposit() {
   const navigate = useNavigate();

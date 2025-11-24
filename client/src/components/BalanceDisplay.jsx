@@ -4,7 +4,8 @@ import { DollarSign, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5000/api';
+
+const API_BASE = import.meta.env.VITE_BASE_URI;
 
 function BalanceDisplay() {
   const [balance, setBalance] = useState({ capitalAmount: 0, currentAmount: 0 });
