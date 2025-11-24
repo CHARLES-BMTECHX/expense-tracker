@@ -1,28 +1,18 @@
-const Deposit = require('../models/Deposit');
+const Deposit= require('../models/Deposit');
 const Balance = require('../models/Balance');
 
 // GET all deposits
 const getAllDeposits = async (req, res) => {
   try {
     const deposits = await Deposit.find().sort({ date: -1 });
+    const totalAmount = deposits.reduce((sum, item) => sum + Number(item.amount), 0);
 
-    // calculate total amount
-    const totalAmount = deposits.reduce((sum, item) => {
-      return sum + Number(item.amount);
-    }, 0);
-
-    res.json({
-      totalAmount,
-      deposits
-    });
-
+    res.json({ deposits, totalAmount });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-
-// GET single deposit
 const getDeposit = async (req, res) => {
   try {
     const deposit = await Deposit.findById(req.params.id);
@@ -33,103 +23,86 @@ const getDeposit = async (req, res) => {
   }
 };
 
-// POST new deposit (ADD TO BALANCE)
 const createDeposit = async (req, res) => {
   try {
     const { name, amount, date } = req.body;
+    if (!name || !amount) return res.status(400).json({ message: "Name and amount required" });
 
     const amountNumber = Number(amount);
-    if (isNaN(amountNumber)) {
-      return res.status(400).json({ message: "Amount must be a number" });
-    }
+    if (isNaN(amountNumber) || amountNumber <= 0)
+      return res.status(400).json({ message: "Valid positive amount required" });
 
-    // 1️⃣ Save deposit entry
     const newDeposit = await Deposit.create({
       name,
       amount: amountNumber,
-      date,
+      date: date || new Date(),
     });
 
-    // 2️⃣ Ensure balance exists (if not, create one)
     let balance = await Balance.findOne();
-
     if (!balance) {
-      balance = new Balance({
-        capitalAmount: amountNumber,
-        currentAmount: amountNumber,
-      });
+      balance = new Balance({ capitalAmount: amountNumber, currentAmount: amountNumber });
     } else {
-      balance.capitalAmount = Number(balance.capitalAmount) + amountNumber;
-      balance.currentAmount = Number(balance.currentAmount) + amountNumber;
+      balance.capitalAmount += amountNumber;
+      balance.currentAmount += amountNumber;
     }
-
     await balance.save();
 
     res.status(201).json(newDeposit);
-
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// UPDATE deposit (old + new)
 const updateDeposit = async (req, res) => {
-  const { id } = req.params;
-  const { name, amount, date } = req.body;
-
   try {
-    const deposit = await Deposit.findById(id);
-    if (!deposit) {
-      return res.status(404).json({ message: "Deposit not found" });
-    }
+    const deposit = await Deposit.findById(req.params.id);
+    if (!deposit) return res.status(404).json({ message: "Deposit not found" });
 
-    const newAmount = Number(amount);
     const oldAmount = Number(deposit.amount);
+    const newAmount = Number(req.body.amount);
 
-    // ADD NEW AMOUNT on top of old amount
-    const updatedAmount = oldAmount + newAmount;
+    if (isNaN(newAmount) || newAmount <= 0)
+      return res.status(400).json({ message: "Valid amount required" });
 
-    // update deposit
-    deposit.name = name;
-    deposit.amount = updatedAmount;
-    deposit.date = date || deposit.date;
+    const difference = newAmount - oldAmount;
+
+    deposit.name = req.body.name || deposit.name;
+    deposit.amount = newAmount;
+    deposit.date = req.body.date || deposit.date;
     await deposit.save();
 
-    // update balance
     const balance = await Balance.findOne();
     if (balance) {
-      balance.capitalAmount = Number(balance.capitalAmount) + newAmount;
-      balance.currentAmount = Number(balance.currentAmount) + newAmount;
+      balance.capitalAmount += difference;
+      balance.currentAmount += difference;
       await balance.save();
     }
 
     res.json(deposit);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: err.message });
   }
 };
 
-// DELETE deposit
 const deleteDeposit = async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const deposit = await Deposit.findById(id);
+    const deposit = await Deposit.findById(req.params.id);
     if (!deposit) return res.status(404).json({ message: 'Deposit not found' });
 
-    const oldAmount = Number(deposit.amount);
+    const amountToSubtract = Number(deposit.amount);
 
     await deposit.deleteOne();
 
-    // update balance
     const balance = await Balance.findOne();
     if (balance) {
-      balance.capitalAmount = Number(balance.capitalAmount) - oldAmount;
-      balance.currentAmount = Number(balance.currentAmount) - oldAmount;
+      balance.capitalAmount -= amountToSubtract;
+      balance.currentAmount -= amountToSubtract;
       await balance.save();
     }
 
-    res.json({ message: "Deposit deleted" });
+    res.json({ message: "Deposit deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
